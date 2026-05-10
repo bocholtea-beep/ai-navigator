@@ -6,128 +6,115 @@ import os
 # --- 1. GRUNDEINSTELLUNGEN ---
 st.set_page_config(page_title="KI-Lern-Navigator", layout="wide", page_icon="🎓")
 
-# Ein bisschen Design, damit es professionell aussieht
+# Design-Anpassungen
 st.markdown("""
     <style>
     .stAlert { border-radius: 10px; }
-    .stVideo { border-radius: 15px; overflow: hidden; }
-    .tutor-box { background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #007bff; }
+    .tutor-box { 
+        background-color: #f8f9fa; 
+        padding: 15px; 
+        border-radius: 10px; 
+        border-left: 5px solid #007bff;
+        color: #1a1a1a;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. DATEN LADEN ---
 def load_content():
-    """Lädt die Kursinhalte aus der content.json Datei"""
     try:
         with open('content.json', 'r', encoding='utf-8') as f:
             return json.load(f)
-    except FileNotFoundError:
-        st.error("❌ Fehler: Die Datei 'content.json' wurde nicht gefunden. Bitte erstelle sie auf GitHub.")
-        return None
-    except json.JSONDecodeError:
-        st.error("❌ Fehler: Die 'content.json' enthält einen Schreibfehler (Format falsch).")
+    except Exception:
         return None
 
 content = load_content()
 
-# --- 3. SEITENLEISTE (Navigation & Key) ---
+# --- 3. SIDEBAR (Navigation & API-Key) ---
 with st.sidebar:
-    st.title("🎓 Lern-Einstellungen")
+    st.title("⚙️ Einstellungen")
     
-    # API-Key Logik
-    st.subheader("🔑 Verbindung")
-    api_key = os.getenv("GOOGLE_API_KEY") # Versucht den Key aus den Cloud-Secrets zu lesen
-    
+    # API-Key Logik: Priorität auf Secrets, sonst Eingabefeld
+    api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        api_key = st.text_input("Gemini API-Key hier einfügen:", type="password")
+        api_key = st.text_input("Gemini API-Key:", type="password", help="Hole deinen Key auf aistudio.google.com")
     
     if api_key:
         genai.configure(api_key=api_key)
-        st.success("✅ KI-Verbindung bereit!")
+        st.success("✅ Verbindung aktiv")
     else:
-        st.warning("⚠️ Bitte gib einen API-Key ein, um den Tutor zu nutzen.")
-        st.info("Einen Key bekommst du kostenlos auf: https://aistudio.google.com/")
+        st.warning("⚠️ Bitte API-Key eintragen.")
 
     st.divider()
 
-    # Lektionswahl
     if content and "micro_learnings" in content:
         titles = [m['title'] for m in content['micro_learnings']]
-        selected_title = st.selectbox("Wähle deine Lektion:", titles)
+        selected_title = st.selectbox("Lektion wählen:", titles)
         ml = next(m for m in content['micro_learnings'] if m['title'] == selected_title)
     else:
+        st.error("Datei 'content.json' fehlt oder ist leer.")
         ml = None
 
 # --- 4. HAUPTBEREICH ---
 if ml:
-    st.title(f"Modul: {ml['title']}")
+    st.title(f"📖 {ml['title']}")
     
     col_links, col_rechts = st.columns([2, 1])
 
-    # LINKE SEITE: Video & Infos
+    # LINKS: Video und Zusammenfassung
     with col_links:
         st.video(ml['video_url'])
-        
-        with st.expander("📖 Zusammenfassung der wichtigsten Punkte", expanded=True):
-            for point in ml['summary_points']:
-                st.write(f"✅ {point}")
+        st.subheader("Zusammenfassung")
+        for point in ml['summary_points']:
+            st.write(f"• {point}")
 
-    # RECHTE SEITE: KI-Tutor & Flashcards
+    # RECHTS: KI-Tutor und Flashcards
     with col_rechts:
-        st.subheader("🤖 Dein KI-Tutor")
-        
-        # Chat-Eingabe
-        user_query = st.text_input("Hast du eine Frage zum Video?", placeholder="Frag mich etwas...")
+        st.subheader("🤖 KI-Tutor")
+        user_query = st.text_input("Frage zum Inhalt:", placeholder="Tippe hier deine Frage...")
         
         if user_query:
             if not api_key:
-                st.error("Zuerst API-Key in der Sidebar eingeben!")
+                st.error("API-Key fehlt!")
             else:
-                with st.spinner("Tutor überlegt..."):
+                with st.spinner("Tutor antwortet..."):
                     try:
-                        # Wir probieren erst das schnelle Modell
+                        # Hauptversuch mit dem aktuellsten Modell
                         model = genai.GenerativeModel('gemini-1.5-flash')
+                        kontext = f"Du bist ein hilfreicher Tutor. Thema: {ml['title']}. {ml['system_prompt']}"
                         
-                        # Wir geben der KI Kontext, damit sie weiß, worum es geht
-                        kontext = f"Du bist ein Tutor. Das Thema ist: {ml['title']}. Wichtige Punkte: {', '.join(ml['summary_points'])}. {ml['system_prompt']}"
-                        
-                        antwort = model.generate_content(f"{kontext}\n\nFrage des Nutzers: {user_query}")
-                        st.markdown(f"<div class='tutor-box'>{antwort.text}</div>", unsafe_allow_html=True)
-                        
+                        response = model.generate_content(f"{kontext}\n\nFrage: {user_query}")
+                        st.markdown(f"<div class='tutor-box'>{response.text}</div>", unsafe_allow_html=True)
+                    
                     except Exception as e:
-                        # Falls das nicht klappt, versuchen wir das alte Standard-Modell
+                        # Backup: Falls Flash ein Problem hat, versuche Pro 1.5
                         try:
-                            model_alt = genai.GenerativeModel('gemini-pro')
-                            antwort_alt = model_alt.generate_content(user_query)
-                            st.markdown(f"<div class='tutor-box'>{antwort_alt.text}</div>", unsafe_allow_html=True)
+                            model_pro = genai.GenerativeModel('gemini-1.5-pro')
+                            response = model_pro.generate_content(user_query)
+                            st.info(response.text)
                         except Exception as e_final:
-                            st.error(f"KI-Fehler: {str(e_final)}")
+                            st.error("Fehler bei der KI-Verbindung.")
+                            st.write(f"Details: {str(e_final)}")
 
         st.divider()
         
-        # Flashcards (Lernkarten)
-        st.subheader("🗂️ Quiz-Karten")
-        if 'card_idx' not in st.session_state: st.session_state.card_idx = 0
-        if 'show_ans' not in st.session_state: st.session_state.show_ans = False
+        # Flashcards
+        st.subheader("🗂️ Lernkarten")
+        if 'c_idx' not in st.session_state: st.session_state.c_idx = 0
+        if 'flipped' not in st.session_state: st.session_state.flipped = False
         
-        cards = ml['flashcards']
-        aktuelle_karte = cards[st.session_state.card_idx]
+        card = ml['flashcards'][st.session_state.c_idx]
+        anzeige = card['back'] if st.session_state.flipped else card['front']
         
-        # Anzeige der Karte
-        if st.session_state.show_ans:
-            st.success(f"**Antwort:**\n\n{aktuelle_karte['back']}")
-        else:
-            st.info(f"**Frage:**\n\n{aktuelle_karte['front']}")
+        st.info(f"**{anzeige}**")
         
         c1, c2 = st.columns(2)
-        if c1.button("🔄 Umdrehen"):
-            st.session_state.show_ans = not st.session_state.show_ans
+        if c1.button("🔄 Drehen"):
+            st.session_state.flipped = not st.session_state.flipped
             st.rerun()
-            
         if c2.button("➡️ Nächste"):
-            st.session_state.card_idx = (st.session_state.card_idx + 1) % len(cards)
-            st.session_state.show_ans = False
+            st.session_state.c_idx = (st.session_state.c_idx + 1) % len(ml['flashcards'])
+            st.session_state.flipped = False
             st.rerun()
-
 else:
-    st.warning("Bitte stelle sicher, dass eine gültige 'content.json' Datei vorhanden ist.")
+    st.info("Warte auf Konfiguration...")
