@@ -3,22 +3,8 @@ import google.generativeai as genai
 import json
 import os
 
-# --- 1. GRUNDEINSTELLUNGEN ---
-st.set_page_config(page_title="KI-Lern-Navigator", layout="wide", page_icon="🎓")
-
-# Design-Anpassungen
-st.markdown("""
-    <style>
-    .stAlert { border-radius: 10px; }
-    .tutor-box { 
-        background-color: #f8f9fa; 
-        padding: 15px; 
-        border-radius: 10px; 
-        border-left: 5px solid #007bff;
-        color: #1a1a1a;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 1. SETUP ---
+st.set_page_config(page_title="KI-Lern-Navigator", layout="wide")
 
 # --- 2. DATEN LADEN ---
 def load_content():
@@ -30,14 +16,10 @@ def load_content():
 
 content = load_content()
 
-# --- 3. SIDEBAR (Navigation & API-Key) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
     st.title("⚙️ Einstellungen")
-    
-    # API-Key Logik: Priorität auf Secrets, sonst Eingabefeld
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        api_key = st.text_input("Gemini API-Key:", type="password", help="Hole deinen Key auf aistudio.google.com")
+    api_key = os.getenv("GOOGLE_API_KEY") or st.text_input("Gemini API-Key:", type="password")
     
     if api_key:
         genai.configure(api_key=api_key)
@@ -52,60 +34,51 @@ with st.sidebar:
         selected_title = st.selectbox("Lektion wählen:", titles)
         ml = next(m for m in content['micro_learnings'] if m['title'] == selected_title)
     else:
-        st.error("Datei 'content.json' fehlt oder ist leer.")
         ml = None
 
 # --- 4. HAUPTBEREICH ---
 if ml:
     st.title(f"📖 {ml['title']}")
-    
     col_links, col_rechts = st.columns([2, 1])
 
-    # LINKS: Video und Zusammenfassung
     with col_links:
         st.video(ml['video_url'])
         st.subheader("Zusammenfassung")
         for point in ml['summary_points']:
             st.write(f"• {point}")
 
-    # RECHTS: KI-Tutor und Flashcards
     with col_rechts:
         st.subheader("🤖 KI-Tutor")
-        user_query = st.text_input("Frage zum Inhalt:", placeholder="Tippe hier deine Frage...")
+        user_query = st.text_input("Frage zum Inhalt:", key="query_input")
         
-        if user_query:
-            if not api_key:
-                st.error("API-Key fehlt!")
-            else:
-                with st.spinner("Tutor antwortet..."):
-                    try:
-                        # Hauptversuch mit dem aktuellsten Modell
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        kontext = f"Du bist ein hilfreicher Tutor. Thema: {ml['title']}. {ml['system_prompt']}"
-                        
-                        response = model.generate_content(f"{kontext}\n\nFrage: {user_query}")
-                        st.markdown(f"<div class='tutor-box'>{response.text}</div>", unsafe_allow_html=True)
+        if user_query and api_key:
+            with st.spinner("Tutor sucht passendes Modell..."):
+                try:
+                    # SCHRITT 1: Wir suchen, welches Modell dein Key darf
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
                     
-                    except Exception as e:
-                        # Backup: Falls Flash ein Problem hat, versuche Pro 1.5
-                        try:
-                            model_pro = genai.GenerativeModel('gemini-1.5-pro')
-                            response = model_pro.generate_content(user_query)
-                            st.info(response.text)
-                        except Exception as e_final:
-                            st.error("Fehler bei der KI-Verbindung.")
-                            st.write(f"Details: {str(e_final)}")
+                    # SCHRITT 2: Wir wählen ein verfügbares Modell (bevorzugt 1.5-flash)
+                    selected_model = 'models/gemini-1.5-flash' 
+                    if selected_model not in available_models:
+                        selected_model = available_models[0] # Nimm das erste verfügbare
+                    
+                    # SCHRITT 3: Antwort generieren
+                    model = genai.GenerativeModel(selected_model)
+                    response = model.generate_content(f"{ml['system_prompt']}\n\nFrage: {user_query}")
+                    st.info(response.text)
+                    
+                except Exception as e:
+                    st.error("Kein Zugriff auf KI-Modelle möglich.")
+                    st.write(f"Fehler-Details: {str(e)}")
+                    st.info("Tipp: Erstelle im Google AI Studio einen NEUEN Key in einem NEUEN Projekt.")
 
         st.divider()
-        
-        # Flashcards
         st.subheader("🗂️ Lernkarten")
         if 'c_idx' not in st.session_state: st.session_state.c_idx = 0
         if 'flipped' not in st.session_state: st.session_state.flipped = False
         
         card = ml['flashcards'][st.session_state.c_idx]
         anzeige = card['back'] if st.session_state.flipped else card['front']
-        
         st.info(f"**{anzeige}**")
         
         c1, c2 = st.columns(2)
