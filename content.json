@@ -2,55 +2,18 @@
     "micro_learnings": [
         {
             "id": "ml_001",
-            "title": "KI-Grundlagen: Prompt Engineering",
-            "video_url": "https://www.youtube.com/embed/jC4v5AS46Sg",
+            "title": "Willkommen zum KI-Kurs",
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             "summary_points": [
-                "Definition von Prompting als Kommunikationsform.",
-                "Die Rolle von Kontext für die Ergebnisqualität.",
-                "Unterschied zwischen Zero-Shot und Few-Shot Prompting.",
-                "Iteration als Schlüssel zum Erfolg.",
-                "Vermeidung von Halluzinationen durch klare Anweisungen.",
-                "Einsatz von Personas für spezifische Tonalität.",
-                "Strukturierung von komplexen Aufgaben.",
-                "Bedeutung von negativen Constraints.",
-                "Nutzung von Delimitern zur Trennung von Instruktionen.",
-                "KI als Werkzeug, nicht als Orakel."
-            ],
-            "quiz": [
-                {
-                    "question": "Was verbessert die Antwortqualität einer KI am stärksten?",
-                    "options": [
-                        "Kürze",
-                        "Kontext",
-                        "Höflichkeit"
-                    ],
-                    "answer": "Kontext"
-                },
-                {
-                    "question": "Was ist eine 'Halluzination'?",
-                    "options": [
-                        "Ein technischer Defekt",
-                        "Ein erfundenes Faktum",
-                        "Ein Bild-Artefakt"
-                    ],
-                    "answer": "Ein erfundenes Faktum"
-                }
+                "Dies ist dein erstes Lernmodul.",
+                "Der KI-Tutor rechts hilft dir bei Fragen.",
+                "Nutze die Flashcards zum Üben."
             ],
             "flashcards": [
-                {
-                    "front": "Prompt",
-                    "back": "Die Eingabeanweisung an ein KI-Modell."
-                },
-                {
-                    "front": "Temperature",
-                    "back": "Ein Parameter, der die Kreativität/Zufälligkeit der KI steuert."
-                },
-                {
-                    "front": "Context Window",
-                    "back": "Die Menge an Daten, die eine KI gleichzeitig verarbeiten kann."
-                }
+                {"front": "Was ist KI?", "back": "Künstliche Intelligenz (Simulation menschlichen Lernens)."},
+                {"front": "Was ist Gemini?", "back": "Das KI-Modell von Google."}
             ],
-            "system_prompt": "Du bist ein erfahrener KI-Tutor. Dein Ziel ist es, den Nutzer durch die Grundlagen des Prompt Engineering zu führen. Antworte präzise, nutze Beispiele und kehre immer zum Lernpfad zurück, nachdem du eine Zwischenfrage beantwortet hast."
+            "system_prompt": "Du bist ein freundlicher Tutor für diesen Kurs. Antworte kurz und verständlich."
         }
     ]
 }
